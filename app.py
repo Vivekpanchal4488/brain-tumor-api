@@ -3,11 +3,17 @@ from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import os
 
 app = Flask(__name__)
 CORS(app, origins="*")
 
-model = tf.keras.models.load_model('best_model.keras')
+# Load model at startup
+print("Loading model...")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'best_model.keras')
+model = tf.keras.models.load_model(MODEL_PATH)
+print("Model loaded successfully!")
+
 class_names = ['glioma', 'meningioma', 'notumor', 'pituitary']
 
 @app.route('/predict', methods=['POST', 'OPTIONS'])
@@ -34,11 +40,22 @@ def predict():
             }
         })
     except Exception as e:
+        print(f"Prediction error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/', methods=['GET'])
 def health():
-    return jsonify({'status': 'API is running!'})
+    return jsonify({'status': 'API is running!', 'model': 'loaded'})
 
 if __name__ == '__main__':
     app.run(debug=True)
+```
+
+---
+
+## After Updating GitHub:
+
+Watch Render logs for:
+```
+Loading model...
+Model loaded successfully!
