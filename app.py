@@ -8,7 +8,6 @@ import os
 app = Flask(__name__)
 CORS(app, origins="*")
 
-# Load model at startup
 print("Loading model...")
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'best_model.keras')
 model = tf.keras.models.load_model(MODEL_PATH)
@@ -49,13 +48,3 @@ def health():
 
 if __name__ == '__main__':
     app.run(debug=True)
-```
-
----
-
-## After Updating GitHub:
-
-Watch Render logs for:
-```
-Loading model...
-Model loaded successfully!
