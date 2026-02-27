@@ -55,12 +55,3 @@ def health():
 
 if __name__ == '__main__':
     app.run(debug=True)
-```
-
----
-
-After committing both files, watch Render logs for:
-```
-Loading model from: /opt/render/project/src/best_model.keras
-Model exists: True
-Model loaded successfully!
