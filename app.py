@@ -54,15 +54,3 @@ def health():
 
 if __name__ == '__main__':
     app.run(debug=True)
-```
-
----
-
-## Also Update `requirements.txt`:
-```
-flask
-flask-cors
-pillow
-numpy
-gunicorn
-tensorflow-cpu
