@@ -4,21 +4,17 @@ from PIL import Image
 import numpy as np
 import os
 import gc
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
 import tensorflow as tf
-tf.config.set_visible_devices([], 'GPU')
 
 app = Flask(__name__)
 CORS(app, origins="*")
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'best_model.keras')
-print(f"Loading model from: {MODEL_PATH}")
-model = tf.keras.models.load_model(MODEL_PATH)
-model.trainable = False
-print("Model loaded successfully!")
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brain_tumor.tflite')
+interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+print("TFLite model loaded!")
 
 class_names = ['glioma', 'meningioma', 'notumor', 'pituitary']
 
@@ -30,7 +26,9 @@ def predict():
         file = request.files['image']
         img = Image.open(file.stream).convert('RGB').resize((224, 224))
         img_array = np.expand_dims(np.array(img, dtype=np.float32), axis=0)
-        predictions = model(img_array, training=False).numpy()
+        interpreter.set_tensor(input_details[0]['index'], img_array)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]['index'])
         gc.collect()
         predicted_class = class_names[np.argmax(predictions)]
         confidence = float(np.max(predictions) * 100)
@@ -50,7 +48,7 @@ def predict():
 
 @app.route('/', methods=['GET'])
 def health():
-    return jsonify({'status': 'API is running!', 'model': 'loaded'})
+    return jsonify({'status': 'API is running!', 'model': 'tflite'})
 
 if __name__ == '__main__':
     app.run(debug=True)
