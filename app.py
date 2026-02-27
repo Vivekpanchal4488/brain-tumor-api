@@ -1,20 +1,23 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import numpy as np
 from PIL import Image
+import numpy as np
 import os
-import tensorflow as tf
+import gc
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 app = Flask(__name__)
 CORS(app, origins="*")
 
+# Load model once
+import tensorflow as tf
+tf.config.set_visible_devices([], 'GPU')
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'best_model.keras')
-print(f"Loading model from: {MODEL_PATH}")
-print(f"Model exists: {os.path.exists(MODEL_PATH)}")
 model = tf.keras.models.load_model(MODEL_PATH)
-print("Model loaded successfully!")
+model.trainable = False
+print("Model ready!")
 
 class_names = ['glioma', 'meningioma', 'notumor', 'pituitary']
 
@@ -24,14 +27,17 @@ def predict():
         return jsonify({'status': 'ok'}), 200
     try:
         file = request.files['image']
-        img = Image.open(file.stream).convert('RGB')
-        img = img.resize((224, 224))
-        img_array = np.array(img, dtype=np.float32)
-        img_array = np.expand_dims(img_array, axis=0)
-        predictions = model.predict(img_array, verbose=0)
+        img = Image.open(file.stream).convert('RGB').resize((224, 224))
+        img_array = np.expand_dims(np.array(img, dtype=np.float32), axis=0)
+        
+        # Predict with minimal memory
+        predictions = model(img_array, training=False).numpy()
+        gc.collect()
+        
         predicted_class = class_names[np.argmax(predictions)]
         confidence = float(np.max(predictions) * 100)
         has_tumor = predicted_class != 'notumor'
+        
         return jsonify({
             'hasTumor': has_tumor,
             'tumorType': predicted_class,
@@ -42,16 +48,12 @@ def predict():
             }
         })
     except Exception as e:
-        print(f"Prediction error: {str(e)}")
+        print(f"Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/', methods=['GET'])
 def health():
-    return jsonify({
-        'status': 'API is running!',
-        'model': 'loaded',
-        'model_exists': os.path.exists(MODEL_PATH)
-    })
+    return jsonify({'status': 'API is running!', 'model': 'loaded'})
 
 if __name__ == '__main__':
     app.run(debug=True)
